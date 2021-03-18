@@ -4,7 +4,7 @@ use std::time::Duration;
 use crate::board::{after_move, gen_moves, A8, BOARD_SIZE, H8, INITIAL_BOARD_STATE};
 use crate::pieces::Square;
 use crate::search::Searcher;
-use crate::ui::{parse_move, render_move};
+use crate::ui::{parse_move, render_move, from_fen};
 
 fn read_line() -> String {
     let mut line = String::new();
@@ -30,18 +30,24 @@ pub fn uci_loop() {
                 //position startpos moves d2d4 d7d5 e2e4 d5e4
                 info!("loading moves");
                 let moves: Vec<&str> = next_command.split(' ').collect();
-                if moves.len() == 2 && moves[1] != "startpos" {
-                    warn!("UNKNOWN FORMAT!");
-                    panic!();
-                } else if moves.len() > 2
-                    && (moves[0] != "position" || moves[1] != "startpos" || moves[2] != "moves")
-                {
-                    warn!("UNKNOWN FORMAT!");
-                    panic!();
-                }
-                board_state = INITIAL_BOARD_STATE;
+                let first_move_index; // the index of the first move after the "moves" keyword
+                match moves[1] {
+                    "startpos" => {
+                        first_move_index = 3;
+                        board_state = INITIAL_BOARD_STATE;
+                    },
+                    "fen" => {
+                        first_move_index = 9;
+                        let fen = moves[2..=7].join(" ");
+                        board_state = from_fen(&fen);
+                    },
+                    _ => {
+                        warn!("UNKNOWN FORMAT!");
+                        panic!();
+                    }
+                };
                 am_black = false;
-                for move_ in moves.iter().skip(3) {
+                for move_ in moves.iter().skip(first_move_index) {
                     let mut parsed_move = parse_move(move_);
                     if am_black {
                         parsed_move.0 = BOARD_SIZE - 1 - parsed_move.0;
